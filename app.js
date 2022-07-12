@@ -3,11 +3,29 @@ require("dotenv").config();
 const createError = require("http-errors");
 const express = require("express");
 const http = require("http");
+const cors = require("cors");
 
 const app = express();
 
 const port = process.env.PORT || 8080;
 const server = http.createServer(app);
+
+const socketio = require("socket.io")(server, {
+  cors: {
+    origin: "*",
+    credentials: true,
+  },
+});
+
+socketio.on("connection", (socket) => {
+  console.log(`A user connected ${socket.id}`);
+});
+
+socketio.on("diconnect", function (socket) {
+  console.log(`A user disconnected ${socket.id}`);
+});
+
+app.use(cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
