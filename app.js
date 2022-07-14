@@ -10,20 +10,48 @@ const app = express();
 const port = process.env.PORT || 8080;
 const server = http.createServer(app);
 
-const socketio = require("socket.io")(server, {
+const io = require("socket.io")(server, {
   cors: {
-    origin: "*",
+    origin: "http://localhost:3000",
     credentials: true,
   },
 });
 
-socketio.on("connection", (socket) => {
-  console.log(`A user connected ${socket.id}`);
+// io.on("connection", (socket) => {
+//   console.log(`User Connected ${socket.id}`);
+// });
+let rooms = {};
+
+io.on("connection", (socket) => {
+  // socket.onAny((event) => {
+  //   console.log(`Socket Event: ${event}`);
+  // });
+  console.log(`User Connected ${socket.id}`);
+  // }
+  // socket.on("send_message", (data) => {
+  //   socket.broadcast.emit("receive_message", data);
+  // });
+
+  // 방 생성하기
+  socket.on("makeRoom", (roomTitle) => {
+    console.log("back", roomTitle);
+    rooms[socket.id] = {
+      roomTitle,
+      roomMaxNum: 3,
+    };
+    socket.broadcast.emit("roomList", rooms);
+  });
+
+  // //방 입장하기
+  socket.on("joinRoom", (roomTitle) => {
+    socket.join(roomTitle);
+    console.log("roomTitle", roomTitle);
+  });
 });
 
-socketio.on("diconnect", function (socket) {
-  console.log(`A user disconnected ${socket.id}`);
-});
+// io.on("disconnect", (socket) => {
+//   console.log(`A user disconnected ${socket.id}`);
+// });
 
 app.use(cors());
 
