@@ -19,7 +19,6 @@ const io = require("socket.io")(server, {
 });
 
 let rooms = {};
-let player = {};
 let lastPlayderId = 0;
 const clients = io.engine.clients;
 
@@ -33,19 +32,19 @@ io.on("connection", (socket) => {
   console.log(`User Connected ${socket.id}`);
 
   socket.on("newPlayer", () => {
-    const players = [];
-    player[socket.id] = {
+    socket.player = {
       id: lastPlayderId++,
       x: randomInt(100, 400),
       y: randomInt(100, 400),
     };
-    players.push(
-      Object.keys(clients).forEach((socketId) => {
-        players.push(player[socketId]);
-      })
-    );
-    socket.broadcast.emit("newPlayer", player);
+    const players = [];
+
+    Object.keys(clients).forEach((socketId) => {
+      players.push(socket.player);
+    });
+
     socket.emit("allplayers", players);
+    socket.broadcast.emit("newPlayer", socket.player);
   });
 
   // 방 생성하기
@@ -60,7 +59,6 @@ io.on("connection", (socket) => {
   // //방 입장하기
   socket.on("joinRoom", (roomTitle, callback) => {
     socket.join(roomTitle);
-    console.log("roomTitle", roomTitle);
   });
 });
 
