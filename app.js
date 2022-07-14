@@ -10,6 +10,7 @@ const app = express();
 const port = process.env.PORT || 8080;
 const server = http.createServer(app);
 
+//socket setting
 const io = require("socket.io")(server, {
   cors: {
     origin: "http://localhost:3000",
@@ -17,24 +18,38 @@ const io = require("socket.io")(server, {
   },
 });
 
-// io.on("connection", (socket) => {
-//   console.log(`User Connected ${socket.id}`);
-// });
 let rooms = {};
+let player = {};
+let lastPlayderId = 0;
+const clients = io.engine.clients;
 
+//calculate random int
+const randomInt = (min, max) => {
+  return Math.floor(Math.random() * (max - min) + min);
+};
+
+//socket
 io.on("connection", (socket) => {
-  // socket.onAny((event) => {
-  //   console.log(`Socket Event: ${event}`);
-  // });
   console.log(`User Connected ${socket.id}`);
-  // }
-  // socket.on("send_message", (data) => {
-  //   socket.broadcast.emit("receive_message", data);
-  // });
+
+  socket.on("newPlayer", () => {
+    const players = [];
+    player[socket.id] = {
+      id: lastPlayderId++,
+      x: randomInt(100, 400),
+      y: randomInt(100, 400),
+    };
+    players.push(
+      Object.keys(clients).forEach((socketId) => {
+        players.push(player[socketId]);
+      })
+    );
+    socket.broadcast.emit("newPlayer", player);
+    socket.emit("allplayers", players);
+  });
 
   // 방 생성하기
   socket.on("makeRoom", (roomTitle) => {
-    console.log("back", roomTitle);
     rooms[socket.id] = {
       roomTitle,
       roomMaxNum: 3,
@@ -43,7 +58,7 @@ io.on("connection", (socket) => {
   });
 
   // //방 입장하기
-  socket.on("joinRoom", (roomTitle) => {
+  socket.on("joinRoom", (roomTitle, callback) => {
     socket.join(roomTitle);
     console.log("roomTitle", roomTitle);
   });
