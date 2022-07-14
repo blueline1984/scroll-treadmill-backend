@@ -19,7 +19,9 @@ const io = require("socket.io")(server, {
 });
 
 let rooms = {};
+let player = {};
 let lastPlayderId = 0;
+const players = [];
 const clients = io.engine.clients;
 
 //calculate random int
@@ -27,24 +29,33 @@ const randomInt = (min, max) => {
   return Math.floor(Math.random() * (max - min) + min);
 };
 
+//get all the player
+const getAllPlayers = () => {
+  const players = [];
+  Object.keys(clients).forEach((socketId) => {
+    players.push(player);
+  });
+  // Object.keys(clients).forEach((socketId) => {
+  //   clients[socketId].player = player;
+
+  //   if (player) players.push(player);
+  // });
+  return players;
+};
 //socket
 io.on("connection", (socket) => {
   console.log(`User Connected ${socket.id}`);
 
+  //
   socket.on("newPlayer", () => {
-    socket.player = {
+    player = {
       id: lastPlayderId++,
       x: randomInt(100, 400),
       y: randomInt(100, 400),
     };
-    const players = [];
-
-    Object.keys(clients).forEach((socketId) => {
-      players.push(socket.player);
-    });
-
+    players.push(player);
     socket.emit("allplayers", players);
-    socket.broadcast.emit("newPlayer", socket.player);
+    socket.broadcast.emit("newPlayer", player);
   });
 
   // 방 생성하기
