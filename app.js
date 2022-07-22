@@ -13,28 +13,14 @@ const server = http.createServer(app);
 //socket setting
 const io = require("socket.io")(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*",
     credentials: true,
   },
 });
 
 //initial states(data base)
 const rooms = {};
-let player = {};
 let lastPlayerId = 1;
-const players = [];
-
-//room 예시
-/*
-const rooms = {
-  6D_8lr3unha4X4eaAAAD : {
-    player: {}
-    playerNum: 0,
-    roomMaxNum: 3,
-    roomTitle: "test2"
-  }
-}
-*/
 
 //calculate random int
 const randomInt = (min, max) => {
@@ -65,19 +51,19 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("allRoomList", rooms);
     const roomInfo = rooms[roomKey];
 
-    io.in(roomKey).emit("welcome", `Hello, this is ${roomKey} Room`);
+    io.in(roomKey).emit("welcome", roomInfo);
 
     roomInfo.players[socket.id] = {
       rotation: 0,
       name: `Player ${lastPlayerId++}`,
-      x: randomInt(100, 1000),
-      y: randomInt(100, 1000),
-      character: [],
+      x: randomInt(400, 1000),
+      y: randomInt(100, 800),
+      character: "",
       playerId: socket.id,
       roomKey,
+      isReady: false,
     };
 
-    // socket.broadcast.emit("setState", roomInfo);
     //chracter 생성
     socket.on("start", () => {
       socket.emit("setState", roomInfo);
@@ -85,31 +71,43 @@ io.on("connection", (socket) => {
       socket.emit("currentPlayers", {
         players: roomInfo.players,
       });
-
-      // socket.broadcast.emit("currentPlayers", {
-      //   players: roomInfo.players,
-      // });
     });
 
     io.to(roomKey).emit("newPlayer", {
       playerInfo: roomInfo.players[socket.id],
     });
 
-    socket.on("characterMovement", (data) => {
+    socket.on("characterMovement", (playerInfo) => {
       //data 이름 수정
-      const { x, y, roomKey } = data;
-      rooms[roomKey].players[socket.id].x = x;
-      rooms[roomKey].players[socket.id].y = y;
-      io.to(roomKey).emit("characterMoved", rooms[roomKey].players[socket.id]);
+      if (rooms[roomKey].players[socket.id]) {
+        const { x, y, roomKey } = playerInfo;
+        rooms[roomKey].players[socket.id].x = x;
+        rooms[roomKey].players[socket.id].y = y;
+        io.to(roomKey).emit(
+          "characterMoved",
+          rooms[roomKey].players[socket.id]
+        );
+      }
     });
 
     socket.on("getAllPlayers", () => {
       //Character Update
-      socket.on("characterSelect", (data) => {
-        roomInfo.players[socket.id].character.push(data);
-      });
       socket.emit("players", roomInfo.players);
     });
+
+    socket.on("ready", (playerId, selectedCharacter) => {
+      roomInfo.players[playerId].isReady = true;
+      roomInfo.players[playerId].character = selectedCharacter;
+      io.to(roomKey).emit("test", roomInfo.players);
+      io.to(roomKey).emit("readyCompleted", roomInfo.players);
+    });
+
+    // socket.on("test", () => {
+    //   socket.on("characterSelect", (selectedCharacter, playerId) => {
+    //     roomInfo.players[playerId].character = selectedCharacter;
+    //     io.to(roomKey).emit("character", roomInfo.players);
+    //   });
+    // });
   });
 
   // etc
@@ -117,11 +115,54 @@ io.on("connection", (socket) => {
     socket.emit("allRoomList", rooms);
     socket.broadcast.emit("allRoomList", rooms);
   });
-});
 
-// io.on("disconnect", (socket) => {
-//   console.log(`A user disconnected ${socket.id}`);
-// });
+  //disconnect(수정)
+  socket.on("disconnect", () => {
+    let roomKey = 0;
+    for (let keys1 in rooms) {
+      for (let keys2 in rooms[keys1]) {
+        Object.keys(rooms[keys1][keys2]).map((element) => {
+          if (element === socket.id) {
+            roomKey = keys1;
+          }
+        });
+      }
+    }
+
+    const roomInfo = rooms[roomKey];
+
+    if (roomInfo) {
+      console.log("user disconnected: ", socket.id);
+
+      delete roomInfo.players[socket.id];
+
+      roomInfo.playerNum = Object.keys(roomInfo.players).length;
+
+      io.to(roomKey).emit("disconnected", {
+        playerId: socket.id,
+        playerNum: roomInfo.playerNum,
+      });
+    }
+  });
+
+  socket.once("characterFall", () => {
+    let roomKey = 0;
+    for (let keys1 in rooms) {
+      for (let keys2 in rooms[keys1]) {
+        Object.keys(rooms[keys1][keys2]).map((element) => {
+          if (element === socket.id) {
+            roomKey = keys1;
+          }
+        });
+      }
+    }
+
+    const roomInfo = rooms[roomKey];
+    roomInfo.playerNum -= 1;
+
+    io.to(roomKey).emit("characterFalled", roomInfo.playerNum);
+  });
+});
 
 app.use(cors());
 
