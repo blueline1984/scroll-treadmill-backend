@@ -160,7 +160,7 @@ io.on("connection", (socket) => {
     const roomInfo = rooms[roomKey];
     roomInfo.playerNum -= 1;
 
-    io.to(roomKey).emit("characterFalled", roomInfo.playerNum);
+    io.to(roomKey).emit("characterFell", roomInfo.playerNum);
   });
 });
 
