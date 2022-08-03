@@ -1,3 +1,3 @@
-# Scroll Treadmill - Client
+# Scroll Treadmill
 
 2D running game using Mouse Scroll
